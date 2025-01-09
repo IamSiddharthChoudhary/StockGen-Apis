@@ -1,3 +1,3 @@
-const app = require("../src/app.cjs");
+const app = require("../src/app.js");
 
 export default app;

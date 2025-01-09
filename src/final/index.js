@@ -1,18 +1,14 @@
-import express from "express";
-import yahooFinance from "yahoo-finance2";
-import cors from "cors";
-import fetch from "node-fetch";
-import axios from "axios";
-import { OpenAI } from "openai";
-import dotenv from "dotenv";
+const express = require("express");
+const yahooFinance = require("yahoo-finance2").default;
+const cors = require("cors");
+const axios = require("axios");
+const { OpenAI } = require("openai");
+const dotenv = require("dotenv");
 
 dotenv.config();
 
 const app = express.Router();
 const port = process.env.PORT || 4000;
-
-app.use(express.json());
-app.use(cors());
 
 const openai = new OpenAI({
   apiKey: process.env.API_KEY,
@@ -33,47 +29,48 @@ app.get("/api/stock/:ticker", async (req, res) => {
   }
 
   try {
-    const quote = await yahooFinance.quote(ticker);
+    const quote = await yahooFinance.quoteSummary(ticker);
     const financialData = await yahooFinance.quoteSummary(ticker, {
       modules: ["financialData", "defaultKeyStatistics", "recommendationTrend"],
     });
 
     const stockData = {
-      name: quote.longName || "N/A",
-      description: quote.longBusinessSummary || "N/A",
-      marketCap: formatLargeNumber(quote.marketCap),
-      sharesOutstanding: formatLargeNumber(quote.sharesOutstanding),
-      float: formatLargeNumber(financialData.defaultKeyStatistics.floatShares),
+      name: quote.price?.longName || "N/A",
+      description: quote.summaryProfile?.longBusinessSummary || "N/A",
+      marketCap: formatLargeNumber(quote.price?.marketCap),
+      sharesOutstanding: formatLargeNumber(
+        quote.defaultKeyStatistics?.sharesOutstanding
+      ),
+      float: formatLargeNumber(quote.defaultKeyStatistics?.floatShares),
       evEbitda:
-        financialData.defaultKeyStatistics.enterpriseToEbitda?.toFixed(2) ||
-        "N/A",
-      peTtm: quote.trailingPE?.toFixed(2) || "N/A",
-      dividendRate: quote.dividendRate?.toFixed(2) || "N/A",
-      cashPosition: formatLargeNumber(financialData.financialData.totalCash),
-      totalDebt: formatLargeNumber(financialData.financialData.totalDebt),
+        quote.defaultKeyStatistics?.enterpriseToEbitda?.toFixed(2) || "N/A",
+      peTtm: quote.summaryDetail?.trailingPE?.toFixed(2) || "N/A",
+      dividendRate: quote.summaryDetail?.dividendRate?.toFixed(2) || "N/A",
+      cashPosition: formatLargeNumber(financialData.financialData?.totalCash),
+      totalDebt: formatLargeNumber(financialData.financialData?.totalDebt),
       debtToEquity:
-        financialData.financialData.debtToEquity?.toFixed(2) || "N/A",
+        financialData.financialData?.debtToEquity?.toFixed(2) || "N/A",
       currentRatio:
-        financialData.financialData.currentRatio?.toFixed(2) || "N/A",
+        financialData.financialData?.currentRatio?.toFixed(2) || "N/A",
       strengthsAndCatalysts: "Requires manual input or additional API",
       analystRating:
-        financialData.financialData.recommendationMean?.toFixed(2) || "N/A",
+        financialData.financialData?.recommendationMean?.toFixed(2) || "N/A",
       numberOfAnalysts:
-        financialData.financialData.numberOfAnalystOpinions?.toString() ||
+        financialData.financialData?.numberOfAnalystOpinions?.toString() ||
         "N/A",
       meanTargetPrice:
-        financialData.financialData.targetMeanPrice?.toFixed(2) || "N/A",
+        financialData.financialData?.targetMeanPrice?.toFixed(2) || "N/A",
       impliedChange:
         (
-          (financialData.financialData.targetMeanPrice /
-            quote.regularMarketPrice -
+          (financialData.financialData?.targetMeanPrice /
+            quote.price?.regularMarketPrice -
             1) *
           100
         )?.toFixed(2) + "%" || "N/A",
       risksAndMitigation: "Requires manual input or additional API",
       recommendation:
-        financialData.recommendationTrend.trend[0]?.strongBuy >
-        financialData.recommendationTrend.trend[0]?.sell
+        financialData.recommendationTrend?.trend[0]?.strongBuy >
+        financialData.recommendationTrend?.trend[0]?.sell
           ? "Buy"
           : "Sell",
     };
@@ -202,6 +199,4 @@ app.post("/api/get-ticker", async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Merged Finance API server running at http://localhost:${port}`);
-});
+module.exports = app;
